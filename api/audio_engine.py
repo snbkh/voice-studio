@@ -250,6 +250,7 @@ def process_audio(input_path: str, output_path: str, options: dict) -> dict:
         "duration_reduced_seconds": max(0.0, duration_reduced),
         "smart_threshold_used": input_info.get("smart_silence_threshold", "-42dB"),
         "filter_chain_used": filter_chain
+    }
     if fallback_used:
         ret["notice"] = "AI model encountered format incompatibility; seamlessly enhanced using Spectral Denoising."
     elif options.get("denoise_engine") == "rnnoise" and input_info.get("duration", 0) > 20.0:
