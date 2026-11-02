@@ -855,7 +855,7 @@
       formData.append('normalize', optNormalize.checked);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s safety timeout
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s safety timeout
 
       try {
         const response = await fetch('/api/process', {
