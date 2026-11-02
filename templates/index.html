@@ -622,9 +622,24 @@
         }
 
         resultCard.style.display = 'block';
-        enhancedPlayer.src = data.output_url + '?t=' + Date.now();
-        downloadBtn.href = data.output_url + '?download=1';
-        downloadBtn.download = data.output_filename;
+        if (data.audio_base64) {
+          const byteCharacters = atob(data.audio_base64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const audioBlob = new Blob([byteArray], { type: 'audio/mpeg' });
+          const blobUrl = URL.createObjectURL(audioBlob);
+
+          enhancedPlayer.src = blobUrl;
+          downloadBtn.href = blobUrl;
+          downloadBtn.download = data.output_filename;
+        } else {
+          enhancedPlayer.src = data.output_url + '?t=' + Date.now();
+          downloadBtn.href = data.output_url + '?download=1';
+          downloadBtn.download = data.output_filename;
+        }
 
         enhancedPlayer.play().catch(() => {});
         resultCard.scrollIntoView({ behavior: 'smooth' });

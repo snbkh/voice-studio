@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import base64
 import urllib.parse
 from flask import Flask, request, jsonify, send_file
 
@@ -57,8 +58,10 @@ def handle_requests(path):
         return process_audio()
 
     # Match media streaming / download
-    if 'media/outputs/' in path:
-        rel_name = urllib.parse.unquote(path.split('media/outputs/')[-1])
+    req_uri = request.headers.get('x-forwarded-uri') or request.environ.get('REQUEST_URI') or request.path or path
+    if 'media/outputs/' in req_uri or 'media/outputs/' in path:
+        matched = req_uri if 'media/outputs/' in req_uri else path
+        rel_name = urllib.parse.unquote(matched.split('media/outputs/')[-1].split('?')[0])
         target_path = os.path.join(OUTPUTS_DIR, rel_name)
         if not os.path.exists(target_path):
             return "File not found or expired", 404
@@ -113,6 +116,9 @@ def process_audio():
             "output_url": f"/media/outputs/{quoted_output}",
             "output_filename": output_filename
         })
+        if os.path.exists(output_path):
+            with open(output_path, "rb") as af:
+                result["audio_base64"] = base64.b64encode(af.read()).decode('ascii')
         return jsonify(result)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
