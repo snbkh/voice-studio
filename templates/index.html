@@ -821,7 +821,26 @@
 
       processBtn.disabled = true;
       spinner.style.display = 'inline-block';
-      btnText.textContent = 'Processing Audio...';
+
+      // Progressive status steps
+      const steps = [
+        "📤 Uploading Audio...",
+        "🔓 Pre-Decoding & Healing Packets...",
+        "🎧 Balancing Earphone Channels...",
+        "🧠 Isolating Noise & Hiss...",
+        "📈 Leveling Speech Dynamics...",
+        "🔇 Trimming Silence & Studio Polish...",
+        "✨ Finalizing Studio Master..."
+      ];
+
+      let currentStep = 0;
+      btnText.textContent = steps[0];
+      const stepInterval = setInterval(() => {
+        currentStep++;
+        if (currentStep < steps.length) {
+          btnText.textContent = steps[currentStep];
+        }
+      }, 1200);
 
       const formData = new FormData();
       formData.append('audio', selectedFile);
@@ -836,7 +855,7 @@
       formData.append('normalize', optNormalize.checked);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 40000); // 40s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s safety timeout
 
       try {
         const response = await fetch('/api/process', {
@@ -856,6 +875,9 @@
         if (!response.ok || !data.success) {
           throw new Error(data.error || 'Failed to process audio');
         }
+
+        clearInterval(stepInterval);
+        btnText.textContent = "✅ Complete!";
 
         resultCard.style.display = 'block';
         if (data.audio_base64) {
@@ -888,6 +910,7 @@
         enhancedPlayer.play().catch(() => {});
         resultCard.scrollIntoView({ behavior: 'smooth' });
       } catch (err) {
+        clearInterval(stepInterval);
         statusNotice.style.display = 'block';
         statusNotice.style.background = 'rgba(239, 68, 68, 0.12)';
         statusNotice.style.border = '1px solid rgba(239, 68, 68, 0.3)';
@@ -898,9 +921,12 @@
           statusNotice.innerHTML = '⚠️ <strong>' + (err.message || 'Processing failed') + '</strong><br><small>Tip: Select <b>Fast</b> denoiser for fast and clean processing.</small>';
         }
       } finally {
-        processBtn.disabled = false;
-        spinner.style.display = 'none';
-        btnText.textContent = 'Process Audio';
+        clearInterval(stepInterval);
+        setTimeout(() => {
+          processBtn.disabled = false;
+          spinner.style.display = 'none';
+          btnText.textContent = 'Process Audio';
+        }, 1400);
       }
     }
   </script>

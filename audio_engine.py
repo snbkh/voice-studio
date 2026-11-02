@@ -116,6 +116,31 @@ def analyze_audio(file_path):
     except Exception:
         pass
 
+    # Check stereo balance (detect if microphone only recorded to Left or Right ear)
+    info["single_ear_fix"] = None
+    if info.get("channels", 2) >= 2:
+        try:
+            stats_cmd = [
+                get_ffmpeg_binary(), "-i", file_path,
+                "-af", "astats=metadata=1:reset=1",
+                "-vn", "-sn", "-dn",
+                "-f", "null", "/dev/null"
+            ]
+            stats_res = subprocess.run(stats_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            rms_matches = re.findall(r"RMS level dB:\s*(-?[\d\.]+|-\s*inf)", stats_res.stderr)
+            if len(rms_matches) >= 2:
+                def parse_rms(v):
+                    return -100.0 if "inf" in v.lower() else float(v)
+                left_rms = parse_rms(rms_matches[0])
+                right_rms = parse_rms(rms_matches[1])
+                # If one ear has sound and the other is dead silent (difference > 18 dB):
+                if left_rms > -50.0 and (left_rms - right_rms) > 18.0:
+                    info["single_ear_fix"] = "left_to_both"
+                elif right_rms > -50.0 and (right_rms - left_rms) > 18.0:
+                    info["single_ear_fix"] = "right_to_both"
+        except Exception:
+            pass
+
     return info
 
 def get_audio_info(file_path):
@@ -124,15 +149,25 @@ def get_audio_info(file_path):
 def build_filter_chain(options: dict, audio_info: dict) -> str:
     """
     Constructs an intelligent FFmpeg audio filter chain:
+    0. Earphone Dual-Ear Balance (Center single-sided mic recordings so sound is heard in BOTH ears)
     1. Bandpass Clean: Highpass (75Hz rumble cut) + Lowpass (9000Hz air hiss cut)
-    2. Smart Denoising (RNNoise AI with strict aformat or Adaptive Fast FFT)
+    2. Smart Denoising (RNNoise AI or Adaptive Fast FFT)
     3. Noise Gate (agate: silences background noise floor during pauses)
-    4. SpeechNorm Auto-Leveler with noise floor threshold (never amplifies room hiss)
+    4. SpeechNorm Auto-Leveler with noise floor threshold
     5. Studio Warmth & Articulation EQ
     6. Conversational Silence Cut
     7. Broadcast Loudness Normalization (-16 LUFS)
     """
     filters = []
+
+    # 0. Earphone Dual-Ear Balance:
+    # If a microphone recorded sound in only one earphone (Left or Right only), duplicate to both ears!
+    if audio_info.get("single_ear_fix") == "left_to_both":
+        filters.append("pan=stereo|c0=c0|c1=c0")
+    elif audio_info.get("single_ear_fix") == "right_to_both":
+        filters.append("pan=stereo|c0=c1|c1=c1")
+    elif audio_info.get("channels") == 1:
+        filters.append("aformat=channel_layouts=stereo")
 
     # 1. Clean bandpass (75 Hz rumble cut + 9000 Hz electronic hiss cut)
     filters.append("highpass=f=75")
@@ -236,15 +271,15 @@ def process_audio(input_path: str, output_path: str, options: dict) -> dict:
         filter_chain = build_filter_chain(options, input_info)
         
         ext = os.path.splitext(output_path)[1].lower()
-        codec_args = []
+        codec_args = ["-ac", "2"]
         if ext == ".mp3":
-            codec_args = ["-c:a", "libmp3lame", "-b:a", "192k", "-q:a", "2"]
+            codec_args.extend(["-c:a", "libmp3lame", "-b:a", "192k", "-q:a", "2"])
         elif ext == ".wav":
-            codec_args = ["-c:a", "pcm_s16le", "-ar", "44100"]
+            codec_args.extend(["-c:a", "pcm_s16le", "-ar", "44100"])
         elif ext in [".m4a", ".aac"]:
-            codec_args = ["-c:a", "aac", "-b:a", "192k"]
+            codec_args.extend(["-c:a", "aac", "-b:a", "192k"])
         else:
-            codec_args = ["-c:a", "libmp3lame", "-b:a", "192k"]
+            codec_args.extend(["-c:a", "libmp3lame", "-b:a", "192k"])
 
         cmd = [get_ffmpeg_binary(), "-y", "-err_detect", "ignore_err", "-i", working_input, "-af", filter_chain] + codec_args + [output_path]
         process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
