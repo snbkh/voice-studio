@@ -373,8 +373,8 @@
           <span class="toggle-label">🧹 Noise Remover</span>
           <div class="toggle-controls">
             <select id="denoiseEngine" class="select-mini">
-              <option value="spectral" selected>Fast</option>
-              <option value="rnnoise">AI Model</option>
+              <option value="spectral" selected>Fast (Clean &amp; Fast)</option>
+              <option value="rnnoise">AI Model (&lt;20s clips)</option>
             </select>
             <select id="denoiseStrength" class="select-mini">
               <option value="light">Light</option>
@@ -441,6 +441,8 @@
         <div class="spinner" id="spinner"></div>
         <span id="btnText">Select a File</span>
       </button>
+
+      <div id="statusNotice" style="display:none; padding:12px; border-radius:10px; margin-top:14px; font-size:13px; line-height:1.5;"></div>
     </div>
 
     <!-- Results Area -->
@@ -594,6 +596,9 @@
     async function processFile() {
       if (!selectedFile) return;
 
+      const statusNotice = document.getElementById('statusNotice');
+      statusNotice.style.display = 'none';
+
       processBtn.disabled = true;
       spinner.style.display = 'inline-block';
       btnText.textContent = 'Processing Audio...';
@@ -610,13 +615,24 @@
       formData.append('silence_duration', silenceDuration.value);
       formData.append('normalize', optNormalize.checked);
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 40000); // 40s timeout
+
       try {
         const response = await fetch('/api/process', {
           method: 'POST',
-          body: formData
+          body: formData,
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
-        const data = await response.json();
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonErr) {
+          throw new Error('Server response timed out. Please try "Fast" denoiser mode.');
+        }
+
         if (!response.ok || !data.success) {
           throw new Error(data.error || 'Failed to process audio');
         }
@@ -641,10 +657,26 @@
           downloadBtn.download = data.output_filename;
         }
 
+        if (data.notice) {
+          statusNotice.style.display = 'block';
+          statusNotice.style.background = 'rgba(56, 189, 248, 0.12)';
+          statusNotice.style.border = '1px solid rgba(56, 189, 248, 0.3)';
+          statusNotice.style.color = '#7dd3fc';
+          statusNotice.textContent = 'ℹ️ ' + data.notice;
+        }
+
         enhancedPlayer.play().catch(() => {});
         resultCard.scrollIntoView({ behavior: 'smooth' });
       } catch (err) {
-        alert('Processing Error: ' + err.message + '\n\nTip: If "AI Model" was selected, try switching to "Fast" denoiser.');
+        statusNotice.style.display = 'block';
+        statusNotice.style.background = 'rgba(239, 68, 68, 0.12)';
+        statusNotice.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        statusNotice.style.color = '#fca5a5';
+        if (err.name === 'AbortError') {
+          statusNotice.innerHTML = '⏱️ <strong>Processing timed out:</strong> Server took too long. Switch to <b>Fast</b> denoiser for instant 5-10 second processing.';
+        } else {
+          statusNotice.innerHTML = '⚠️ <strong>' + (err.message || 'Processing failed') + '</strong><br><small>Tip: Select <b>Fast</b> denoiser for fast and clean processing.</small>';
+        }
       } finally {
         processBtn.disabled = false;
         spinner.style.display = 'none';
