@@ -16,6 +16,16 @@ import shutil
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 DEFAULT_RNNOISE_MODEL = os.path.join(MODELS_DIR, "bd.rnnn")
+if not os.path.exists(DEFAULT_RNNOISE_MODEL):
+    for alt in [
+        os.path.join(os.path.dirname(BASE_DIR), "models", "bd.rnnn"),
+        os.path.join(os.getcwd(), "models", "bd.rnnn"),
+        os.path.join(os.getcwd(), "api", "models", "bd.rnnn")
+    ]:
+        if os.path.exists(alt):
+            DEFAULT_RNNOISE_MODEL = alt
+            break
+
 
 def get_ffmpeg_binary():
     sys_bin = shutil.which("ffmpeg")

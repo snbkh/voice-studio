@@ -4,9 +4,11 @@ import time
 import urllib.parse
 from flask import Flask, request, jsonify, send_file
 
-# Add parent directory to path so audio_engine can be imported
+# Add both root and api dirs to python path
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+API_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
+sys.path.append(API_DIR)
 
 import audio_engine
 
@@ -32,32 +34,40 @@ def purge_old_files():
             except Exception:
                 pass
 
-# Vercel entrypoint WSGI application
+def get_html_content():
+    candidates = [
+        os.path.join(API_DIR, "templates", "index.html"),
+        os.path.join(BASE_DIR, "templates", "index.html"),
+        os.path.join(os.getcwd(), "templates", "index.html"),
+        os.path.join(os.getcwd(), "api", "templates", "index.html")
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            with open(c, "r", encoding="utf-8") as f:
+                return f.read()
+    return "<h1>Voice Studio UI Loading Error</h1><p>index.html not found</p>"
+
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024  # 25MB max
+app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
 
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def catch_all(path):
-    if not path or path == 'index.html':
-        template_path = os.path.join(BASE_DIR, "templates", "index.html")
-        if os.path.exists(template_path):
-            with open(template_path, "r", encoding="utf-8") as f:
-                return f.read(), 200, {'Content-Type': 'text/html; charset=utf-8'}
-        return "index.html not found", 404
-
-    # Media streaming / download
-    if path.startswith("media/outputs/"):
-        rel_name = urllib.parse.unquote(os.path.basename(path))
+@app.route('/', defaults={'path': ''}, methods=['GET'])
+@app.route('/<path:path>', methods=['GET'])
+def serve_pages_and_media(path):
+    # Match media streaming / download
+    if 'media/outputs/' in path:
+        rel_name = urllib.parse.unquote(path.split('media/outputs/')[-1])
         target_path = os.path.join(OUTPUTS_DIR, rel_name)
         if not os.path.exists(target_path):
             return "File not found or expired", 404
         as_attachment = request.args.get('download') == '1'
         return send_file(target_path, mimetype="audio/mpeg", as_attachment=as_attachment, download_name=rel_name)
 
-    return "Not Found", 404
+    # All non-media GET requests serve the main Voice Studio UI
+    content = get_html_content()
+    return content, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
 @app.route('/api/process', methods=['POST'])
+@app.route('/process', methods=['POST'])
 def process_audio():
     purge_old_files()
 
