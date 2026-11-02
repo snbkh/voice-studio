@@ -644,7 +644,7 @@
         enhancedPlayer.play().catch(() => {});
         resultCard.scrollIntoView({ behavior: 'smooth' });
       } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Processing Error: ' + err.message + '\n\nTip: If "AI Model" was selected, try switching to "Fast" denoiser.');
       } finally {
         processBtn.disabled = false;
         spinner.style.display = 'none';

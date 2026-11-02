@@ -145,10 +145,12 @@ def build_filter_chain(options: dict, audio_info: dict) -> str:
         has_rnnoise = os.path.exists(DEFAULT_RNNOISE_MODEL)
 
         if engine == "rnnoise" and has_rnnoise:
-            # Strict aformat prevents RNNoise SIGABRT (code 6) on non-48kHz inputs
             mix = "0.80" if strength == "light" else ("0.96" if strength == "strong" else "0.90")
-            filters.append("aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo")
-            filters.append(f"arnndn=m='{DEFAULT_RNNOISE_MODEL}':mix={mix}")
+            # aresample guarantees 48000 Hz conversion before hitting arnndn
+            filters.append("aresample=48000")
+            filters.append("aformat=sample_fmts=fltp:channel_layouts=stereo")
+            safe_model_path = DEFAULT_RNNOISE_MODEL.replace("\\", "/")
+            filters.append(f"arnndn=m='{safe_model_path}':mix={mix}")
         else:
             # Adaptive Fast FFT
             if strength == "light":
@@ -201,22 +203,32 @@ def process_audio(input_path: str, output_path: str, options: dict) -> dict:
     filter_chain = build_filter_chain(options, input_info)
     
     ext = os.path.splitext(output_path)[1].lower()
-    cmd = [get_ffmpeg_binary(), "-y", "-err_detect", "ignore_err", "-i", input_path, "-af", filter_chain]
-    
+    codec_args = []
     if ext == ".mp3":
-        cmd.extend(["-c:a", "libmp3lame", "-b:a", "192k", "-q:a", "2"])
+        codec_args = ["-c:a", "libmp3lame", "-b:a", "192k", "-q:a", "2"]
     elif ext == ".wav":
-        cmd.extend(["-c:a", "pcm_s16le", "-ar", "44100"])
+        codec_args = ["-c:a", "pcm_s16le", "-ar", "44100"]
     elif ext in [".m4a", ".aac"]:
-        cmd.extend(["-c:a", "aac", "-b:a", "192k"])
+        codec_args = ["-c:a", "aac", "-b:a", "192k"]
     else:
-        cmd.extend(["-c:a", "libmp3lame", "-b:a", "192k"])
+        codec_args = ["-c:a", "libmp3lame", "-b:a", "192k"]
 
-    cmd.append(output_path)
-    
+    cmd = [get_ffmpeg_binary(), "-y", "-err_detect", "ignore_err", "-i", input_path, "-af", filter_chain] + codec_args + [output_path]
     process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    fallback_used = False
+    # If RNNoise fails for any reason (code 244, code 6, OOM), automatically fall back to Spectral FFT
+    if process.returncode != 0 and options.get("denoise_engine") == "rnnoise":
+        fallback_options = dict(options)
+        fallback_options["denoise_engine"] = "spectral"
+        filter_chain = build_filter_chain(fallback_options, input_info)
+        cmd_fallback = [get_ffmpeg_binary(), "-y", "-err_detect", "ignore_err", "-i", input_path, "-af", filter_chain] + codec_args + [output_path]
+        process = subprocess.run(cmd_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if process.returncode == 0:
+            fallback_used = True
+
     if process.returncode != 0:
-        raise RuntimeError(f"FFmpeg failed (code {process.returncode}):\n{process.stderr}")
+        raise RuntimeError(f"Audio processing failed (code {process.returncode}):\n{process.stderr}")
 
     elapsed = round(time.time() - start_time, 2)
     output_info = analyze_audio(output_path)
@@ -225,7 +237,7 @@ def process_audio(input_path: str, output_path: str, options: dict) -> dict:
     if input_info["duration"] > 0 and output_info["duration"] > 0:
         duration_reduced = round(input_info["duration"] - output_info["duration"], 2)
 
-    return {
+    ret = {
         "success": True,
         "elapsed_seconds": elapsed,
         "input_info": input_info,
@@ -234,3 +246,6 @@ def process_audio(input_path: str, output_path: str, options: dict) -> dict:
         "smart_threshold_used": input_info.get("smart_silence_threshold", "-42dB"),
         "filter_chain_used": filter_chain
     }
+    if fallback_used:
+        ret["notice"] = "AI model was incompatible with this format; seamlessly enhanced using Spectral Denoising."
+    return ret
