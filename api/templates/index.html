@@ -734,11 +734,16 @@
       if (e.target.files.length) handleFile(e.target.files[0]);
     });
 
-    const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+    const isVercelHost = window.location.hostname.includes('vercel.app');
+    const MAX_FILE_SIZE = isVercelHost ? 4.5 * 1024 * 1024 : 25 * 1024 * 1024;
 
     function handleFile(file) {
       if (file.size > MAX_FILE_SIZE) {
-        alert('File size exceeds 25 MB limit! Please choose a file smaller than 25 MB.');
+        if (isVercelHost) {
+          alert('Vercel serverless payload limit is 4.5 MB per file. For longer recordings, please upload in MP3 or M4A format (which compresses 10x smaller while maintaining studio quality).');
+        } else {
+          alert('File size exceeds 25 MB limit! Please choose a file smaller than 25 MB.');
+        }
         fileInput.value = '';
         return;
       }
@@ -869,6 +874,9 @@
         try {
           data = await response.json();
         } catch (jsonErr) {
+          if (response.status === 413) {
+            throw new Error('File exceeds Vercel 4.5 MB payload limit. Please upload as MP3 or M4A.');
+          }
           throw new Error('Server response timed out. Please try "Fast" denoiser mode.');
         }
 
