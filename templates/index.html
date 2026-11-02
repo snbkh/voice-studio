@@ -40,27 +40,81 @@
 
     .container {
       width: 100%;
-      max-width: 500px;
+      max-width: 580px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 16px;
     }
 
-    /* Clean Header */
-    header {
+    /* Professional Header */
+    header.app-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       text-align: center;
-      padding: 8px 0 2px;
+      padding: 16px 0 4px;
+      gap: 6px;
+    }
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
     }
     h1 {
-      font-size: 24px;
+      font-size: 25px;
       font-weight: 800;
       letter-spacing: -0.5px;
       color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    header p {
+    .badge-pro {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      color: #fff;
+      text-transform: uppercase;
+    }
+    .header-tagline {
       color: var(--text-muted);
       font-size: 13px;
-      margin-top: 2px;
+      max-width: 440px;
+      line-height: 1.45;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: #34d399;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-top: 4px;
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #10b981;
     }
 
     /* Card */
@@ -329,20 +383,126 @@
       background: rgba(16, 185, 129, 0.3);
     }
 
-    /* Clean Footer */
-    footer {
-      text-align: center;
-      font-size: 11px;
+    /* Informative Article & Guide Card */
+    .article-card {
+      margin-top: 6px;
+      padding: 22px 20px;
+      line-height: 1.6;
+    }
+    .article-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .article-intro {
+      font-size: 13px;
+      color: #cbd5e1;
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 480px) {
+      .feature-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .feature-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 13px;
+    }
+    .feature-box h3 {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .feature-box p {
+      font-size: 12px;
       color: var(--text-muted);
-      padding: 14px 0;
+      line-height: 1.5;
+    }
+    .article-subtitle {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin: 16px 0 8px;
+    }
+    .steps-list {
+      padding-left: 18px;
+      font-size: 12.5px;
+      color: #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .steps-list strong {
+      color: #ffffff;
+    }
+    .privacy-box {
+      background: rgba(99, 102, 241, 0.07);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 12px;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+
+    /* Professional Footer */
+    footer.app-footer {
+      width: 100%;
+      text-align: center;
+      padding: 24px 10px 16px;
+      color: var(--text-muted);
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+    .footer-badges {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .format-pill {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 10.5px;
+      color: #94a3b8;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <header>
-      <h1>Voice Studio</h1>
-      <p>Clean noise, level speech & trim silence</p>
+    <header class="app-header">
+      <div class="brand-row">
+        <div class="brand-logo">🎙️</div>
+        <h1>Voice Studio <span class="badge-pro">PRO</span></h1>
+      </div>
+      <p class="header-tagline">Professional Studio Audio Processing &amp; Noise Isolation</p>
+      <div class="status-badge">
+        <span class="status-dot"></span> 100% Private &bull; Auto-Purge Storage
+      </div>
     </header>
 
     <div class="card">
@@ -373,8 +533,9 @@
           <span class="toggle-label">🧹 Noise Remover</span>
           <div class="toggle-controls">
             <select id="denoiseEngine" class="select-mini">
-              <option value="spectral" selected>Fast (Clean &amp; Fast)</option>
-              <option value="rnnoise">AI Model (&lt;20s clips)</option>
+              <option value="auto" selected>Auto (Optimal)</option>
+              <option value="rnnoise">AI Model (RNNoise)</option>
+              <option value="spectral">Fast (Spectral FFT)</option>
             </select>
             <select id="denoiseStrength" class="select-mini">
               <option value="light">Light</option>
@@ -462,10 +623,69 @@
         Download Enhanced Audio
       </a>
     </div>
+
+    <!-- Informative Article & Guide Section -->
+    <section class="card article-card">
+      <div class="article-title">🎙️ About Voice Studio</div>
+      <p class="article-intro">
+        Voice Studio is an intelligent audio enhancement engine designed for creators, podcasters, voiceover artists, and remote workers. It automatically cleans background noises, balances uneven vocal volume, and trims awkward silence in seconds.
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-box">
+          <h3>🧠 Neural Noise Isolation</h3>
+          <p>
+            Eliminates continuous fan noise, AC hums, room air hiss, and electrical buzz while keeping speech full and natural.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <h3>📈 Dynamic Speech Leveler</h3>
+          <p>
+            Lifts quiet whispered phrases and balances uneven microphone distances without raising background room noise.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <h3>🔇 Natural Silence Trimming</h3>
+          <p>
+            Cuts empty dead air and pauses without clipping words, making conversations crisp, engaging, and professional.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <h3>🔊 Broadcast Loudness (-16 LUFS)</h3>
+          <p>
+            Complies with international loudness standards (EBU R128) required by YouTube, Spotify, and podcast distributors.
+          </p>
+        </div>
+      </div>
+
+      <div class="article-subtitle">⚡ How It Works</div>
+      <ol class="steps-list">
+        <li><strong>Upload Your File:</strong> Select any audio or video recording up to 25 MB (MP3, WAV, M4A, AAC, OGG).</li>
+        <li><strong>Automatic Pre-Decoding:</strong> The system automatically pre-decodes raw packets into uncompressed 48 kHz linear PCM, healing corrupt headers and bitrate inconsistencies.</li>
+        <li><strong>Single-Pass Processing:</strong> Our DSP pipeline cleans, articulates, levels, and masters your voice with zero robotic phasing.</li>
+        <li><strong>Instant Preview &amp; Download:</strong> Compare before and after audio side by side, then download your studio-ready MP3 file.</li>
+      </ol>
+
+      <div class="privacy-box">
+        🔒 <strong>Privacy First:</strong> Your recordings are processed locally or in isolated serverless memory. Files are permanently purged after 5 minutes and never shared or retained.
+      </div>
+    </section>
   </div>
 
-  <footer>
-    Files auto-deleted after 5 minutes &bull; Secure &amp; Private
+  <footer class="app-footer">
+    <div class="footer-badges">
+      <span class="format-pill">MP3</span>
+      <span class="format-pill">WAV</span>
+      <span class="format-pill">M4A</span>
+      <span class="format-pill">AAC</span>
+      <span class="format-pill">OGG</span>
+      <span class="format-pill">Max 25 MB</span>
+    </div>
+    <p>Voice Studio &bull; 100% Private Audio Enhancement &bull; Files auto-purged every 5 mins</p>
+    <small style="opacity:0.6">&copy; 2026 Voice Studio. All rights reserved.</small>
   </footer>
 
   <script>
