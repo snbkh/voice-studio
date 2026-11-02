@@ -50,9 +50,12 @@ def get_html_content():
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
 
-@app.route('/', defaults={'path': ''}, methods=['GET'])
-@app.route('/<path:path>', methods=['GET'])
-def serve_pages_and_media(path):
+@app.route('/', defaults={'path': ''}, methods=['GET', 'POST'])
+@app.route('/<path:path>', methods=['GET', 'POST'])
+def handle_requests(path):
+    if request.method == 'POST':
+        return process_audio()
+
     # Match media streaming / download
     if 'media/outputs/' in path:
         rel_name = urllib.parse.unquote(path.split('media/outputs/')[-1])
@@ -66,9 +69,8 @@ def serve_pages_and_media(path):
     content = get_html_content()
     return content, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
-@app.route('/api/process', methods=['POST'])
-@app.route('/process', methods=['POST'])
 def process_audio():
+
     purge_old_files()
 
     if 'audio' not in request.files:
