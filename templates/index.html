@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Voice Studio</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(18, 25, 40, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.08) 0px, transparent 50%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      overflow-x: hidden;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Clean Header */
+    header {
+      text-align: center;
+      padding: 8px 0 2px;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #ffffff;
+    }
+    header p {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-top: 2px;
+    }
+
+    /* Card */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 8px 25px -4px rgba(0, 0, 0, 0.5);
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* Drop Zone */
+    .drop-zone {
+      border: 1.5px dashed rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 12px;
+      padding: 22px 12px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--primary);
+      background: rgba(99, 102, 241, 0.05);
+    }
+    .drop-zone input {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .drop-icon {
+      font-size: 28px;
+      margin-bottom: 4px;
+    }
+    .drop-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .drop-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* File Info */
+    .file-info {
+      display: none;
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      font-size: 12px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .file-name {
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+    .file-size {
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    /* Presets Chips */
+    .presets-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin: 12px 0;
+    }
+    .preset-chip {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 7px 4px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .preset-chip.active {
+      background: rgba(99, 102, 241, 0.16);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+
+    /* Toggles Container */
+    .toggles-box {
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .toggle-label {
+      font-size: 12.5px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1 1 auto;
+      min-width: 120px;
+    }
+    .toggle-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .select-mini {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 3px 6px;
+      border-radius: 6px;
+      font-size: 10.5px;
+      outline: none;
+    }
+
+    /* Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 38px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(255, 255, 255, 0.15);
+      transition: .25s;
+      border-radius: 22px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .25s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: var(--primary);
+    }
+    input:checked + .slider:before {
+      transform: translateX(16px);
+    }
+
+    /* Process Button */
+    .btn-process {
+      width: 100%;
+      background: var(--primary);
+      color: #ffffff;
+      border: none;
+      padding: 13px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-process:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .btn-process:not(:disabled):hover {
+      background: var(--primary-hover);
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Output Results Area */
+    .result-card {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .audio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .audio-item label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    audio {
+      width: 100%;
+      height: 36px;
+      border-radius: 8px;
+    }
+    .btn-download {
+      display: block;
+      width: 100%;
+      text-align: center;
+      text-decoration: none;
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #34d399;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    .btn-download:hover {
+      background: rgba(16, 185, 129, 0.3);
+    }
+
+    /* Clean Footer */
+    footer {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 14px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Voice Studio</h1>
+      <p>Clean noise, level speech & trim silence</p>
+    </header>
+
+    <div class="card">
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept="audio/*,video/*">
+        <div class="drop-icon">🎙️</div>
+        <div class="drop-title">Select Audio or Video</div>
+        <div class="drop-subtitle">MP3, WAV, M4A, AAC, MP4 &bull; Max 25 MB</div>
+      </div>
+
+      <div class="file-info" id="fileInfo">
+        <span class="file-name" id="fileName">recording.mp3</span>
+        <span class="file-size" id="fileSize">2.4 MB</span>
+      </div>
+
+      <!-- Quick Preset Selection -->
+      <div class="presets-row">
+        <div class="preset-chip active" data-preset="all" onclick="applyPreset('all')">🌟 All-in-1</div>
+        <div class="preset-chip" data-preset="silence" onclick="applyPreset('silence')">🔇 Silence</div>
+        <div class="preset-chip" data-preset="noise" onclick="applyPreset('noise')">🧹 Denoise</div>
+        <div class="preset-chip" data-preset="enhance" onclick="applyPreset('enhance')">✨ Polish</div>
+      </div>
+
+      <!-- Detailed Toggles Controls -->
+      <div class="toggles-box">
+        <!-- 1. Noise Remover -->
+        <div class="toggle-row">
+          <span class="toggle-label">🧹 Noise Remover</span>
+          <div class="toggle-controls">
+            <select id="denoiseEngine" class="select-mini">
+              <option value="spectral" selected>Fast</option>
+              <option value="rnnoise">AI Model</option>
+            </select>
+            <select id="denoiseStrength" class="select-mini">
+              <option value="light">Light</option>
+              <option value="medium" selected>Medium</option>
+              <option value="strong">Strong</option>
+            </select>
+            <label class="switch">
+              <input type="checkbox" id="optDenoise" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 2. Speech Leveler -->
+        <div class="toggle-row">
+          <span class="toggle-label">📈 Speech Leveler (Boost Soft Voice)</span>
+          <label class="switch">
+            <input type="checkbox" id="optSpeechLeveler" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- 3. Silence Remover -->
+        <div class="toggle-row">
+          <span class="toggle-label">🔇 Silence Remover</span>
+          <div class="toggle-controls">
+            <select id="silenceSensitivity" class="select-mini">
+              <option value="-28dB">Aggressive (-28dB)</option>
+              <option value="-34dB" selected>Natural (-34dB)</option>
+              <option value="-38dB">Gentle (-38dB)</option>
+              <option value="-42dB">Studio (-42dB)</option>
+            </select>
+            <select id="silenceDuration" class="select-mini">
+              <option value="0.35">Fast (0.35s)</option>
+              <option value="0.50" selected>Natural (0.50s)</option>
+            </select>
+            <label class="switch">
+              <input type="checkbox" id="optSilence" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 4. Voice Polish -->
+        <div class="toggle-row">
+          <span class="toggle-label">✨ Voice Polish (Warmth & EQ)</span>
+          <label class="switch">
+            <input type="checkbox" id="optEnhance" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- 5. Broadcast Loudness -->
+        <div class="toggle-row">
+          <span class="toggle-label">🔊 Broadcast Loudness (-16 LUFS)</span>
+          <label class="switch">
+            <input type="checkbox" id="optNormalize" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <button class="btn-process" id="processBtn" disabled onclick="processFile()">
+        <div class="spinner" id="spinner"></div>
+        <span id="btnText">Select a File</span>
+      </button>
+    </div>
+
+    <!-- Results Area -->
+    <div class="card result-card" id="resultCard">
+      <div class="audio-group">
+        <div class="audio-item">
+          <label>Enhanced Audio</label>
+          <audio id="enhancedPlayer" controls></audio>
+        </div>
+        <div class="audio-item">
+          <label>Original Audio</label>
+          <audio id="originalPlayer" controls></audio>
+        </div>
+      </div>
+
+      <a id="downloadBtn" href="#" class="btn-download">
+        Download Enhanced Audio
+      </a>
+    </div>
+  </div>
+
+  <footer>
+    Files auto-deleted after 5 minutes &bull; Secure &amp; Private
+  </footer>
+
+  <script>
+    let selectedFile = null;
+
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const processBtn = document.getElementById('processBtn');
+    const btnText = document.getElementById('btnText');
+    const spinner = document.getElementById('spinner');
+
+    const optDenoise = document.getElementById('optDenoise');
+    const denoiseEngine = document.getElementById('denoiseEngine');
+    const denoiseStrength = document.getElementById('denoiseStrength');
+    const optSpeechLeveler = document.getElementById('optSpeechLeveler');
+    const optSilence = document.getElementById('optSilence');
+    const silenceSensitivity = document.getElementById('silenceSensitivity');
+    const silenceDuration = document.getElementById('silenceDuration');
+    const optEnhance = document.getElementById('optEnhance');
+    const optNormalize = document.getElementById('optNormalize');
+
+    const resultCard = document.getElementById('resultCard');
+    const originalPlayer = document.getElementById('originalPlayer');
+    const enhancedPlayer = document.getElementById('enhancedPlayer');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    ['dragenter', 'dragover'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+      });
+    });
+    ['dragleave', 'drop'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+      });
+    });
+    dropZone.addEventListener('drop', (e) => {
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+
+    const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+
+    function handleFile(file) {
+      if (file.size > MAX_FILE_SIZE) {
+        alert('File size exceeds 25 MB limit! Please choose a file smaller than 25 MB.');
+        fileInput.value = '';
+        return;
+      }
+      selectedFile = file;
+      fileName.textContent = file.name;
+      fileSize.textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+      fileInfo.style.display = 'flex';
+      processBtn.disabled = false;
+      btnText.textContent = 'Process Audio';
+      originalPlayer.src = URL.createObjectURL(file);
+    }
+
+    function applyPreset(preset) {
+      document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+      const activeChip = document.querySelector(`[data-preset="${preset}"]`);
+      if (activeChip) activeChip.classList.add('active');
+
+      if (preset === 'all') {
+        optDenoise.checked = true;
+        optSpeechLeveler.checked = true;
+        optSilence.checked = true;
+        optEnhance.checked = true;
+        optNormalize.checked = true;
+      } else if (preset === 'silence') {
+        optDenoise.checked = false;
+        optSpeechLeveler.checked = false;
+        optSilence.checked = true;
+        optEnhance.checked = false;
+        optNormalize.checked = false;
+      } else if (preset === 'noise') {
+        optDenoise.checked = true;
+        optSpeechLeveler.checked = false;
+        optSilence.checked = false;
+        optEnhance.checked = false;
+        optNormalize.checked = false;
+      } else if (preset === 'enhance') {
+        optDenoise.checked = false;
+        optSpeechLeveler.checked = true;
+        optSilence.checked = false;
+        optEnhance.checked = true;
+        optNormalize.checked = true;
+      }
+      updateControlStates();
+    }
+
+    function updateControlStates() {
+      // 1. Noise controls
+      const denoiseActive = optDenoise.checked;
+      denoiseEngine.disabled = !denoiseActive;
+      denoiseEngine.style.opacity = denoiseActive ? '1' : '0.35';
+
+      if (!denoiseActive || denoiseEngine.value === 'rnnoise') {
+        // AI Model automatically detects noise floor; manual strength is disabled
+        denoiseStrength.disabled = true;
+        denoiseStrength.style.opacity = '0.35';
+      } else {
+        denoiseStrength.disabled = false;
+        denoiseStrength.style.opacity = '1';
+      }
+
+      // 2. Silence controls
+      const silenceActive = optSilence.checked;
+      silenceSensitivity.disabled = !silenceActive;
+      silenceSensitivity.style.opacity = silenceActive ? '1' : '0.35';
+      silenceDuration.disabled = !silenceActive;
+      silenceDuration.style.opacity = silenceActive ? '1' : '0.35';
+    }
+
+    optDenoise.addEventListener('change', updateControlStates);
+    denoiseEngine.addEventListener('change', updateControlStates);
+    optSilence.addEventListener('change', updateControlStates);
+    window.addEventListener('DOMContentLoaded', updateControlStates);
+    updateControlStates();
+
+    async function processFile() {
+      if (!selectedFile) return;
+
+      processBtn.disabled = true;
+      spinner.style.display = 'inline-block';
+      btnText.textContent = 'Processing Audio...';
+
+      const formData = new FormData();
+      formData.append('audio', selectedFile);
+      formData.append('denoise', optDenoise.checked);
+      formData.append('denoise_engine', denoiseEngine.value);
+      formData.append('denoise_strength', denoiseStrength.value);
+      formData.append('speech_leveler', optSpeechLeveler.checked);
+      formData.append('enhance', optEnhance.checked);
+      formData.append('remove_silence', optSilence.checked);
+      formData.append('silence_threshold', silenceSensitivity.value);
+      formData.append('silence_duration', silenceDuration.value);
+      formData.append('normalize', optNormalize.checked);
+
+      try {
+        const response = await fetch('/api/process', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to process audio');
+        }
+
+        resultCard.style.display = 'block';
+        enhancedPlayer.src = data.output_url + '?t=' + Date.now();
+        downloadBtn.href = data.output_url + '?download=1';
+        downloadBtn.download = data.output_filename;
+
+        enhancedPlayer.play().catch(() => {});
+        resultCard.scrollIntoView({ behavior: 'smooth' });
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        processBtn.disabled = false;
+        spinner.style.display = 'none';
+        btnText.textContent = 'Process Audio';
+      }
+    }
+  </script>
+</body>
+</html>

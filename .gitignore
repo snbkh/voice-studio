@@ -1,0 +1,7 @@
+# Local uploads and outputs
+uploads/
+outputs/
+__pycache__/
+*.pyc
+.vercel
+vercel_voice_studio.zip
