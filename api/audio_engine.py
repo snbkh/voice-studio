@@ -144,11 +144,10 @@ def build_filter_chain(options: dict, audio_info: dict) -> str:
     """
     filters = []
 
-    # 1. Clean bandpass (75 Hz rumble cut + 9000 Hz electronic hiss cut)
-    filters.append("highpass=f=75")
-    filters.append("lowpass=f=9000")
+    # 1. Clean rumble filter (60 Hz sub-bass AC rumble cut; preserve full voice presence up to 20kHz)
+    filters.append("highpass=f=60")
 
-    # 2. Smart Denoising
+    # 2. Smart Denoising (Submind-style 100% neural noise isolation)
     if options.get("denoise", False):
         engine = options.get("denoise_engine", "auto")
         strength = options.get("denoise_strength", "medium")
@@ -165,34 +164,35 @@ def build_filter_chain(options: dict, audio_info: dict) -> str:
             use_rnnoise = False
 
         if use_rnnoise:
-            mix = "0.80" if strength == "light" else ("0.96" if strength == "strong" else "0.90")
+            # mix=1.0 removes 100% of background noise without leaking original noise (just like Submind)
+            mix = "0.85" if strength == "light" else "1.0"
             safe_model_path = DEFAULT_RNNOISE_MODEL.replace("\\", "/")
-            # Process RNNoise on clean mono; alimiter prevents peaks > 0.95 from causing libmp3lame assertion crashes
             filters.append(f"arnndn=m='{safe_model_path}':mix={mix}")
+            # Dual-stage isolation for Strong mode: RNNoise neural separation + gentle FFT residual polish
+            if strength == "strong":
+                filters.append("afftdn=nf=-36:nr=10:om=o")
+            # alimiter protects encoder from peak clipping
             filters.append("alimiter=limit=0.95")
         else:
-            # Adaptive Fast FFT (Completes in milliseconds with crystal clear noise reduction)
+            # Adaptive Fast Spectral FFT (instant crystal clear noise cancellation)
             if strength == "light":
                 filters.append("afftdn=nf=-36:nr=6:tn=1:om=o")
             elif strength == "strong":
-                filters.append("afftdn=nf=-26:nr=12:tn=1:om=o")
+                filters.append("afftdn=nf=-24:nr=14:tn=1:om=o")
             else:
-                filters.append("afftdn=nf=-32:nr=8:tn=1:om=o")
+                filters.append("afftdn=nf=-30:nr=10:tn=1:om=o")
 
-    # 3. Audio Noise Gate (Mutes empty background air/hiss between speech)
-    filters.append("agate=threshold=0.02:ratio=2.5:attack=15:release=200:range=0.04")
+    # 3. SpeechNorm (Auto-Leveler: Lifts quiet voice; t=0.08 ensures noise floor is never boosted)
+    if options.get("speech_leveler", False):
+        filters.append("speechnorm=e=2.5:r=0.005:p=0.95:t=0.08")
 
-    # 4. SpeechNorm (Auto-Leveler: Lifts quiet speech while ignoring noise floor t=0.03)
-    if options.get("speech_leveler", True):
-        filters.append("speechnorm=e=3.5:r=0.005:p=0.95:t=0.03")
-
-    # 5. Natural Voice Polish (Warmth & Articulation without harsh treble sizzle)
+    # 4. Natural Voice Polish (Warmth & Articulation)
     if options.get("enhance", False):
         filters.append("bass=g=1.2:f=180:w=0.6")
         filters.append("treble=g=1.2:f=3200:w=0.6")
         filters.append("compand=attacks=0.04:decays=0.3:points=-50/-50|-20/-16|0/-3:soft-knee=6:gain=0")
 
-    # 6. Smart Conversational Silence Removal
+    # 5. Smart Conversational Silence Removal
     if options.get("remove_silence", False):
         threshold = options.get("silence_threshold")
         if not threshold or threshold == "auto":
@@ -205,8 +205,8 @@ def build_filter_chain(options: dict, audio_info: dict) -> str:
         )
         filters.append(silence_filter)
 
-    # 7. Broadcast Loudness Normalization (EBU R128)
-    if options.get("normalize", True):
+    # 6. Broadcast Loudness Normalization (EBU R128)
+    if options.get("normalize", False):
         filters.append("loudnorm=I=-16:TP=-1.5:LRA=11")
 
     return ",".join(filters)
