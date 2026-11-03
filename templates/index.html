@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Voice Studio</title>
+  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.all.min.js"></script>
+  <script>window.lamejs || document.write('<script src="/static/js/lame.all.min.js"><\/script>');</script>
   <style>
     :root {
       --bg: #090d16;
@@ -510,7 +512,7 @@
         <input type="file" id="fileInput" accept="audio/*,video/*">
         <div class="drop-icon">🎙️</div>
         <div class="drop-title">Select Audio or Video</div>
-        <div class="drop-subtitle">MP3, WAV, M4A, AAC, MP4 &bull; Max 10 MB</div>
+        <div class="drop-subtitle">Any Format &bull; Max 25 MB &bull; Auto-Compressed</div>
       </div>
 
       <div class="file-info" id="fileInfo">
@@ -663,9 +665,9 @@
 
       <div class="article-subtitle">⚡ How It Works</div>
       <ol class="steps-list">
-        <li><strong>Upload Your File:</strong> Select any audio or video recording up to 10 MB (MP3, WAV, M4A, AAC, OGG).</li>
-        <li><strong>Automatic Pre-Decoding:</strong> The system automatically pre-decodes raw packets into uncompressed 48 kHz linear PCM, healing corrupt headers and bitrate inconsistencies.</li>
-        <li><strong>Single-Pass Processing:</strong> Our DSP pipeline cleans, articulates, levels, and masters your voice with zero robotic phasing.</li>
+        <li><strong>Upload Any File:</strong> Select any audio or video recording up to 25 MB (MP3, WAV, M4A, AAC, OGG, FLAC).</li>
+        <li><strong>In-Browser Compression:</strong> The browser automatically decodes and optimizes audio to lightweight broadcast MP3 before uploading, saving your mobile data and preventing timeouts.</li>
+        <li><strong>Neural Noise Isolation &amp; Mastering:</strong> Our DSP pipeline cleans, articulates, levels, and masters your voice with zero robotic phasing.</li>
         <li><strong>Instant Preview &amp; Download:</strong> Compare before and after audio side by side, then download your studio-ready MP3 file.</li>
       </ol>
 
@@ -682,7 +684,8 @@
       <span class="format-pill">M4A</span>
       <span class="format-pill">AAC</span>
       <span class="format-pill">OGG</span>
-      <span class="format-pill">Max 10 MB</span>
+      <span class="format-pill">FLAC</span>
+      <span class="format-pill">Max 25 MB</span>
     </div>
     <p>Voice Studio &bull; 100% Private Audio Enhancement &bull; Files auto-purged every 5 mins</p>
     <small style="opacity:0.6">&copy; 2026 Voice Studio. All rights reserved.</small>
@@ -734,11 +737,11 @@
       if (e.target.files.length) handleFile(e.target.files[0]);
     });
 
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+    const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 
     function handleFile(file) {
       if (file.size > MAX_FILE_SIZE) {
-        alert('File size exceeds 10 MB limit! Please choose a file smaller than 10 MB.');
+        alert('File size exceeds 25 MB limit! Please choose a file smaller than 25 MB.');
         fileInput.value = '';
         return;
       }
@@ -813,6 +816,136 @@
     window.addEventListener('DOMContentLoaded', updateControlStates);
     updateControlStates();
 
+    // Compact Mono WAV fallback encoder (zero dependencies)
+    function bufferToCompactWav(audioBuffer, targetRate = 24000) {
+      const numSamples = Math.floor(audioBuffer.duration * targetRate);
+      const step = audioBuffer.sampleRate / targetRate;
+      const ch0 = audioBuffer.getChannelData(0);
+      const ch1 = audioBuffer.numberOfChannels > 1 ? audioBuffer.getChannelData(1) : null;
+
+      const wavBuffer = new ArrayBuffer(44 + numSamples * 2);
+      const view = new DataView(wavBuffer);
+      const writeString = (offset, str) => {
+        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+      };
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + numSamples * 2, true);
+      writeString(8, 'WAVE');
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); // Linear PCM
+      view.setUint16(22, 1, true); // Mono
+      view.setUint32(24, targetRate, true);
+      view.setUint32(28, targetRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeString(36, 'data');
+      view.setUint32(40, numSamples * 2, true);
+
+      let offset = 44;
+      for (let i = 0; i < numSamples; i++) {
+        const srcIdx = Math.floor(i * step);
+        let sample = ch0[srcIdx] || 0;
+        if (ch1 && ch1[srcIdx] !== undefined) sample = (sample + ch1[srcIdx]) * 0.5;
+        sample = Math.max(-1, Math.min(1, sample));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+        offset += 2;
+      }
+      return new Blob([view], { type: 'audio/wav' });
+    }
+
+    // In-browser Audio Conversion & Compression
+    async function convertAudioInBrowser(file, statusCallback) {
+      const isMp3 = file.type === 'audio/mpeg' || file.name.toLowerCase().endsWith('.mp3');
+      // If already an MP3 and safely within serverless limits (< 3.8 MB), upload directly
+      if (isMp3 && file.size <= 3.8 * 1024 * 1024) {
+        return file;
+      }
+
+      const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtxClass) {
+        return file; // No Web Audio API support, upload original
+      }
+
+      if (statusCallback) statusCallback("⚡ Optimizing Audio in Browser...");
+      const audioCtx = new AudioCtxClass();
+
+      try {
+        if (statusCallback) statusCallback("🔓 Decoding Audio Packets...");
+        const arrayBuffer = await file.arrayBuffer();
+        let audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+        let sampleRate = audioBuffer.sampleRate;
+        const supportedRates = [8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000];
+
+        // Resample non-standard sample rates to 44100 Hz
+        if (!supportedRates.includes(sampleRate) || sampleRate > 48000) {
+          const targetRate = 44100;
+          const numFrames = Math.ceil(audioBuffer.duration * targetRate);
+          const offlineCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, numFrames, targetRate);
+          const src = offlineCtx.createBufferSource();
+          src.buffer = audioBuffer;
+          src.connect(offlineCtx.destination);
+          src.start(0);
+          audioBuffer = await offlineCtx.startRendering();
+          sampleRate = targetRate;
+        }
+
+        if (statusCallback) statusCallback("🔄 Compressing to Studio MP3...");
+
+        // Primary: Encode to clean 128 kbps mono MP3 via lamejs
+        if (typeof lamejs !== 'undefined' && lamejs.Mp3Encoder) {
+          const channels = 1; // Downmix to mono for 2x encoding speed & half file size
+          const kbps = 128; // Standard broadcast quality
+          const encoder = new lamejs.Mp3Encoder(channels, sampleRate, kbps);
+          const mp3Chunks = [];
+          const blockSize = 1152;
+          const length = audioBuffer.length;
+          const int16 = new Int16Array(length);
+
+          if (audioBuffer.numberOfChannels === 1) {
+            const ch0 = audioBuffer.getChannelData(0);
+            for (let i = 0; i < length; i++) {
+              let s = Math.max(-1, Math.min(1, ch0[i]));
+              int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+          } else {
+            const ch0 = audioBuffer.getChannelData(0);
+            const ch1 = audioBuffer.getChannelData(1);
+            for (let i = 0; i < length; i++) {
+              let s = Math.max(-1, Math.min(1, (ch0[i] + ch1[i]) * 0.5));
+              int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+          }
+
+          for (let i = 0; i < length; i += blockSize) {
+            const chunk = int16.subarray(i, i + blockSize);
+            const mp3buf = encoder.encodeBuffer(chunk);
+            if (mp3buf.length > 0) mp3Chunks.push(mp3buf);
+          }
+          const end = encoder.flush();
+          if (end.length > 0) mp3Chunks.push(end);
+
+          const mp3Blob = new Blob(mp3Chunks, { type: 'audio/mpeg' });
+          const baseName = file.name.replace(/\.[^/.]+$/, "");
+          console.log(`Audio compressed: ${(file.size/1024).toFixed(0)}KB -> ${(mp3Blob.size/1024).toFixed(0)}KB`);
+          return new File([mp3Blob], baseName + ".mp3", { type: 'audio/mpeg' });
+        }
+
+        // Secondary Fallback: Compact mono WAV
+        if (statusCallback) statusCallback("⚡ Compressing Audio Data...");
+        const wavBlob = bufferToCompactWav(audioBuffer, 24000);
+        const baseName = file.name.replace(/\.[^/.]+$/, "");
+        return new File([wavBlob], baseName + ".wav", { type: 'audio/wav' });
+
+      } catch (err) {
+        console.warn("In-browser conversion fell back to original file:", err);
+        return file;
+      } finally {
+        try { audioCtx.close(); } catch (_) {}
+      }
+    }
+
     async function processFile() {
       if (!selectedFile) return;
 
@@ -822,9 +955,22 @@
       processBtn.disabled = true;
       spinner.style.display = 'inline-block';
 
+      // 1. In-Browser Audio Conversion & Compression
+      btnText.textContent = "⚡ Optimizing Audio...";
+      let fileToSend = selectedFile;
+      try {
+        fileToSend = await convertAudioInBrowser(selectedFile, (msg) => {
+          btnText.textContent = msg;
+        });
+      } catch (convErr) {
+        console.warn("Conversion error, proceeding with original:", convErr);
+      }
+
+      const sizeKb = (fileToSend.size / 1024).toFixed(0);
+
       // Progressive status steps
       const steps = [
-        "📤 Uploading Audio...",
+        `📤 Uploading (${sizeKb} KB)...`,
         "🔓 Pre-Decoding & Healing Packets...",
         "🎧 Balancing Earphone Channels...",
         "🧠 Isolating Noise & Hiss...",
@@ -843,7 +989,7 @@
       }, 1200);
 
       const formData = new FormData();
-      formData.append('audio', selectedFile);
+      formData.append('audio', fileToSend);
       formData.append('denoise', optDenoise.checked);
       formData.append('denoise_engine', denoiseEngine.value);
       formData.append('denoise_strength', denoiseStrength.value);
@@ -870,7 +1016,7 @@
           data = await response.json();
         } catch (jsonErr) {
           if (response.status === 413) {
-            throw new Error('File exceeds the 10 MB upload limit. Please upload a smaller file.');
+            throw new Error('File exceeds the server upload limit. Please try a shorter recording.');
           }
           throw new Error('Server response timed out. Please try "Fast" denoiser mode.');
         }

@@ -167,6 +167,14 @@ class VoiceStudioHandler(BaseHTTPRequestHandler):
             self.serve_file_with_range(target_path, as_attachment=as_attachment)
             return
 
+        # 3. Static Assets (JS / CSS)
+        if path.startswith("/static/"):
+            rel_name = urllib.parse.unquote(path.replace("/static/", "", 1))
+            target_path = os.path.join(BASE_DIR, "static", rel_name)
+            if os.path.exists(target_path) and os.path.isfile(target_path):
+                self.serve_file_with_range(target_path)
+                return
+
         self.send_error(404, "Not Found")
 
     def do_POST(self):

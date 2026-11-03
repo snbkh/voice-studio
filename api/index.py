@@ -49,7 +49,7 @@ def get_html_content():
     return "<h1>Voice Studio UI Loading Error</h1><p>index.html not found</p>"
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
 
 @app.route('/', defaults={'path': ''}, methods=['GET', 'POST'])
 @app.route('/<path:path>', methods=['GET', 'POST'])
@@ -67,6 +67,14 @@ def handle_requests(path):
             return "File not found or expired", 404
         as_attachment = request.args.get('download') == '1'
         return send_file(target_path, mimetype="audio/mpeg", as_attachment=as_attachment, download_name=rel_name)
+
+    # Match static assets
+    if 'static/' in req_uri or path.startswith('static/'):
+        rel = (req_uri if 'static/' in req_uri else path).split('static/')[-1].split('?')[0]
+        for sdir in [os.path.join(API_DIR, "static"), os.path.join(BASE_DIR, "static")]:
+            sp = os.path.join(sdir, rel)
+            if os.path.exists(sp) and os.path.isfile(sp):
+                return send_file(sp)
 
     # All non-media GET requests serve the main Voice Studio UI
     content = get_html_content()
