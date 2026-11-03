@@ -510,7 +510,7 @@
         <input type="file" id="fileInput" accept="audio/*,video/*">
         <div class="drop-icon">🎙️</div>
         <div class="drop-title">Select Audio or Video</div>
-        <div class="drop-subtitle">MP3, WAV, M4A, AAC, MP4 &bull; Max 25 MB</div>
+        <div class="drop-subtitle">MP3, WAV, M4A, AAC, MP4 &bull; Max 10 MB</div>
       </div>
 
       <div class="file-info" id="fileInfo">
@@ -663,7 +663,7 @@
 
       <div class="article-subtitle">⚡ How It Works</div>
       <ol class="steps-list">
-        <li><strong>Upload Your File:</strong> Select any audio or video recording up to 25 MB (MP3, WAV, M4A, AAC, OGG).</li>
+        <li><strong>Upload Your File:</strong> Select any audio or video recording up to 10 MB (MP3, WAV, M4A, AAC, OGG).</li>
         <li><strong>Automatic Pre-Decoding:</strong> The system automatically pre-decodes raw packets into uncompressed 48 kHz linear PCM, healing corrupt headers and bitrate inconsistencies.</li>
         <li><strong>Single-Pass Processing:</strong> Our DSP pipeline cleans, articulates, levels, and masters your voice with zero robotic phasing.</li>
         <li><strong>Instant Preview &amp; Download:</strong> Compare before and after audio side by side, then download your studio-ready MP3 file.</li>
@@ -682,7 +682,7 @@
       <span class="format-pill">M4A</span>
       <span class="format-pill">AAC</span>
       <span class="format-pill">OGG</span>
-      <span class="format-pill">Max 25 MB</span>
+      <span class="format-pill">Max 10 MB</span>
     </div>
     <p>Voice Studio &bull; 100% Private Audio Enhancement &bull; Files auto-purged every 5 mins</p>
     <small style="opacity:0.6">&copy; 2026 Voice Studio. All rights reserved.</small>
@@ -734,16 +734,11 @@
       if (e.target.files.length) handleFile(e.target.files[0]);
     });
 
-    const isVercelHost = window.location.hostname.includes('vercel.app');
-    const MAX_FILE_SIZE = isVercelHost ? 4.5 * 1024 * 1024 : 25 * 1024 * 1024;
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
     function handleFile(file) {
       if (file.size > MAX_FILE_SIZE) {
-        if (isVercelHost) {
-          alert('Vercel serverless payload limit is 4.5 MB per file. For longer recordings, please upload in MP3 or M4A format (which compresses 10x smaller while maintaining studio quality).');
-        } else {
-          alert('File size exceeds 25 MB limit! Please choose a file smaller than 25 MB.');
-        }
+        alert('File size exceeds 10 MB limit! Please choose a file smaller than 10 MB.');
         fileInput.value = '';
         return;
       }
@@ -875,7 +870,7 @@
           data = await response.json();
         } catch (jsonErr) {
           if (response.status === 413) {
-            throw new Error('File exceeds Vercel 4.5 MB payload limit. Please upload as MP3 or M4A.');
+            throw new Error('File exceeds the 10 MB upload limit. Please upload a smaller file.');
           }
           throw new Error('Server response timed out. Please try "Fast" denoiser mode.');
         }

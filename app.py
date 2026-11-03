@@ -187,9 +187,9 @@ class VoiceStudioHandler(BaseHTTPRequestHandler):
                 return
 
             content_length = int(self.headers.get("Content-Length", 0))
-            MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB limit
+            MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB limit
             if content_length > MAX_FILE_SIZE:
-                self.send_json({"success": False, "error": "File exceeds the 25 MB limit"}, 413)
+                self.send_json({"success": False, "error": "File exceeds the 10 MB limit"}, 413)
                 return
 
             body_bytes = self.rfile.read(content_length)
